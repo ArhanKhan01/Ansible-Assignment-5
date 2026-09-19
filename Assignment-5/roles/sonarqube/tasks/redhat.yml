@@ -1,0 +1,60 @@
+---
+- name: Install RHEL prerequisites
+  ansible.builtin.dnf:
+    name:
+      - unzip
+      - wget
+      - curl
+      - ca-certificates
+      - procps-ng
+    state: present
+    update_cache: true
+
+- name: Check Java installation
+  ansible.builtin.command:
+    cmd: "{{ sonarqube_java_home }}/bin/java -version"
+  register: java_check
+  changed_when: false
+  failed_when: false
+
+- name: Download Amazon Corretto 17
+  ansible.builtin.get_url:
+    url: "https://corretto.aws/downloads/latest/amazon-corretto-17-x64-linux-jdk.tar.gz"
+    dest: /tmp/amazon-corretto-17.tar.gz
+    mode: "0644"
+  when: java_check.rc != 0
+
+- name: Create Java directory
+  ansible.builtin.file:
+    path: "{{ sonarqube_java_home }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: java_check.rc != 0
+
+- name: Extract Java 17
+  ansible.builtin.unarchive:
+    src: /tmp/amazon-corretto-17.tar.gz
+    dest: "{{ sonarqube_java_home }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+  when: java_check.rc != 0
+
+- name: Create java symlink
+  ansible.builtin.file:
+    src: "{{ sonarqube_java_home }}/bin/java"
+    dest: /usr/bin/java
+    state: link
+    force: true
+
+- name: Configure JAVA_HOME
+  ansible.builtin.copy:
+    dest: /etc/profile.d/java17.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      export JAVA_HOME={{ sonarqube_java_home }}
+      export PATH=$JAVA_HOME/bin:$PATH

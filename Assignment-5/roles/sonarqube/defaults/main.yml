@@ -1,0 +1,29 @@
+---
+# SonarQube version
+sonarqube_version: "10.6.0.92116"
+
+# Installation
+sonarqube_install_dir: "/opt/sonarqube"
+sonarqube_archive: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+
+# Download
+sonarqube_download_url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-{{ sonarqube_version }}.zip"
+
+# Service account
+sonarqube_user: "sonarqube"
+sonarqube_group: "sonarqube"
+
+# Web configuration
+sonarqube_web_host: "0.0.0.0"
+sonarqube_web_port: 9000
+
+# Java
+sonarqube_java_home: "/usr"
+sonarqube_java_path: "/usr/bin/java"
+
+# Linux limits
+sonarqube_vm_max_map_count: 524288
+sonarqube_file_max: 131072
+
+# Service
+sonarqube_service_name: "sonarqube"

@@ -1,0 +1,118 @@
+---
+- name: Load OS specific variables
+  ansible.builtin.include_vars:
+    file: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: Install OS specific prerequisites
+  ansible.builtin.include_tasks:
+    file: "{{ ansible_facts['os_family'] | lower }}.yml"
+
+- name: Create SonarQube group
+  ansible.builtin.group:
+    name: "{{ sonarqube_group }}"
+    state: present
+
+- name: Create SonarQube user
+  ansible.builtin.user:
+    name: "{{ sonarqube_user }}"
+    group: "{{ sonarqube_group }}"
+    shell: /bin/bash
+    system: true
+    create_home: false
+    state: present
+
+- name: Create SonarQube installation directory
+  ansible.builtin.file:
+    path: "{{ sonarqube_install_dir }}"
+    state: directory
+    owner: "{{ sonarqube_user }}"
+    group: "{{ sonarqube_group }}"
+    mode: "0755"
+
+- name: Configure vm.max_map_count
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-sonarqube.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      vm.max_map_count={{ sonarqube_vm_max_map_count }}
+      fs.file-max={{ sonarqube_file_max }}
+
+- name: Apply kernel parameters
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: true
+
+- name: Download SonarQube
+  ansible.builtin.get_url:
+    url: "{{ sonarqube_download_url }}"
+    dest: "{{ sonarqube_archive }}"
+    mode: "0644"
+
+- name: Extract SonarQube
+  ansible.builtin.unarchive:
+    src: "{{ sonarqube_archive }}"
+    dest: /opt
+    remote_src: true
+    creates: "/opt/sonarqube-{{ sonarqube_version }}"
+
+- name: Remove existing SonarQube directory
+  ansible.builtin.file:
+    path: "{{ sonarqube_install_dir }}"
+    state: absent
+
+- name: Rename extracted SonarQube directory
+  ansible.builtin.command:
+    cmd: "mv /opt/sonarqube-{{ sonarqube_version }} {{ sonarqube_install_dir }}"
+  args:
+    creates: "{{ sonarqube_install_dir }}"
+
+- name: Set SonarQube ownership
+  ansible.builtin.file:
+    path: "{{ sonarqube_install_dir }}"
+    owner: "{{ sonarqube_user }}"
+    group: "{{ sonarqube_group }}"
+    recurse: true
+
+- name: Make SonarQube startup script executable
+  ansible.builtin.file:
+    path: "{{ sonarqube_install_dir }}/bin/linux-x86-64/sonar.sh"
+    owner: "{{ sonarqube_user }}"
+    group: "{{ sonarqube_group }}"
+    mode: "0755"
+
+- name: Configure SonarQube
+  ansible.builtin.template:
+    src: sonar.properties.j2
+    dest: "{{ sonarqube_install_dir }}/conf/sonar.properties"
+    owner: "{{ sonarqube_user }}"
+    group: "{{ sonarqube_group }}"
+    mode: "0644"
+  notify: Restart SonarQube
+
+- name: Restore SELinux context
+  ansible.builtin.command:
+    cmd: "restorecon -RF {{ sonarqube_install_dir }}"
+  when:
+    - ansible_facts.selinux is defined
+    - ansible_facts.selinux.status == "enabled"
+  changed_when: true
+
+- name: Create SonarQube systemd service
+  ansible.builtin.template:
+    src: sonarqube.service.j2
+    dest: "/etc/systemd/system/{{ sonarqube_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart SonarQube
+
+- name: Enable and start SonarQube
+  ansible.builtin.systemd:
+    name: "{{ sonarqube_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,15 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Java and prerequisites on Ubuntu
+  ansible.builtin.apt:
+    name:
+      - openjdk-17-jdk
+      - unzip
+      - wget
+      - curl
+      - ca-certificates
+      - procps
+    state: present
