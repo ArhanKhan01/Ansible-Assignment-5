@@ -1,8 +1,8 @@
 [ubuntu]
-ubuntu1 ansible_host=16.171.16.0 ansible_user=ubuntu 
+ubuntu1 ansible_host=51.20.55.32 ansible_user=ubuntu 
 
 [redhat]
-redhat1 ansible_host=51.20.10.38 ansible_user=ec2-user 
+redhat1 ansible_host=13.60.190.33 ansible_user=ec2-user 
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
